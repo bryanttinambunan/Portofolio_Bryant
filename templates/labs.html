@@ -1,0 +1,22 @@
+<!-- LAB -->
+<section class="lab-section" id="lab">
+  <div class="section-label reveal">03 — Laboratory</div>
+  <p class="reveal" style="font-size:15px; color:var(--text-secondary); max-width:560px; line-height:1.8; margin-bottom:0;">
+    Eksperimen fundamental dari ruang kelas UNIMED — di sinilah setiap konsep core computer science diuji, dibongkar, dan dipahami dari tingkat paling dasar.
+  </p>
+
+  <div class="lab-grid">
+    {% for lab in data.labs %}
+    <div class="lab-card reveal {% if loop.index0 > 0 %}reveal-delay-{{ loop.index0 }}{% endif %}" data-num="{{ lab.num }}">
+      <div class="lab-card-icon">{{ lab.icon }}</div>
+      <h3>{{ lab.title }}</h3>
+      <p>{{ lab.desc }}</p>
+      <div class="lab-tech">
+        {% for tech in lab.tech %}
+        <span>{{ tech }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
