@@ -17,15 +17,13 @@
   <!-- SCROLL PROGRESS BAR -->
   <div class="scroll-progress" id="scroll-progress"></div>
 
-  <!-- PREMIUM CYBER PRELOADER -->
+  <!-- CINEMATIC MINIMALIST PRELOADER -->
   <div class="preloader" id="preloader">
-    <div class="preloader-content">
-      <div class="preloader-greeting" id="preloader-greeting">HALO</div>
-      <div class="preloader-logo">B<span>.</span>T</div>
-      <div class="preloader-bar">
-        <div class="preloader-progress" id="preloader-progress"></div>
+    <div class="preloader-ambient"></div>
+    <div class="preloader-center">
+      <div class="preloader-word-wrap">
+        <span class="preloader-word" id="preloader-word">Hello.</span>
       </div>
-      <div class="preloader-status" id="preloader-status">INITIALIZING SYSTEM...</div>
     </div>
   </div>
 
@@ -53,6 +51,9 @@
     <!-- The dynamic Bezier path representing the retractable thread -->
     <path id="lanyard-strap-path" d="M 0 0" fill="none" stroke="url(#strap-gradient)" stroke-width="3.5" filter="url(#strap-shadow)" stroke-linecap="round"/>
   </svg>
+
+  <!-- LANYARD REEL — Fixed anchor pin at top-right, sejajar dengan posisi kartu lanyard -->
+  <div id="lanyard-reel" class="lanyard-reel" title="Tarik badge lanyard!"></div>
 
   <!-- INCLUDE MODULAR COMPONENTS -->
   {% include 'navbar.html' %}
