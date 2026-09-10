@@ -1,9 +1,9 @@
 <!-- PROJECTS -->
 <section class="projects-section" id="projects">
-  <div class="section-label reveal">02 — Engineering Work</div>
+  <div class="section-label anim-reveal">02 — Engineering Work</div>
 
   <!-- PROJECT FILTER BUTTONS -->
-  <div class="projects-filter reveal">
+  <div class="projects-filter anim-reveal" style="animation-delay:0.1s">
     <button class="filter-btn active" data-filter="all">Semua</button>
     <button class="filter-btn" data-filter="tag-web">Web Dev</button>
     <button class="filter-btn" data-filter="tag-data">Data Analytics</button>
@@ -12,7 +12,8 @@
   </div>
 
   {% for project in data.projects %}
-  <div class="project-item reveal">
+  <div class="project-item anim-reveal" data-delay="{{ loop.index0 * 0.12 + 0.2 }}s">
+    <div class="project-glare"></div>
     <div class="project-index">0{{ project.id }}</div>
     <div class="project-main">
       <div class="project-meta">
