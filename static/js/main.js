@@ -30,22 +30,208 @@
     });
   });
 
-  // NAV SCROLL
+  // ============================================
+  // MODERN FLOATING NAVBAR CONTROLLER
+  // ============================================
   const nav = document.getElementById('nav');
-  window.addEventListener('scroll', () => {
-    nav.classList.toggle('scrolled', window.scrollY > 60);
+  const navLinksContainer = document.getElementById('nav-links');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  const mobileNavLinks = document.querySelectorAll('.mobile-nav-links a');
+  const activePill = document.getElementById('nav-active-pill');
+  const navHamburger = document.getElementById('nav-hamburger');
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  // 1. Sliding Active Pill Indicator
+  function updateActivePill(targetLink) {
+    if (!activePill || !targetLink || !navLinksContainer) return;
+    const containerRect = navLinksContainer.getBoundingClientRect();
+    const linkRect = targetLink.getBoundingClientRect();
+    const offsetLeft = linkRect.left - containerRect.left;
+    const width = linkRect.width;
+
+    activePill.style.transform = `translateX(${offsetLeft}px)`;
+    activePill.style.width = `${width}px`;
+    activePill.style.opacity = '1';
+  }
+
+  // Update pill position for currently active link
+  function refreshActivePill() {
+    const activeLink = document.querySelector('.nav-links a.active');
+    if (activeLink) {
+      updateActivePill(activeLink);
+    }
+  }
+
+  // Refresh pill on resize
+  window.addEventListener('resize', () => {
+    refreshActivePill();
   });
 
-  // SCROLL REVEAL
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
+  // 2. Scroll Morphing & Smart Direction Hide/Show
+  let isMobileMenuOpen = false;
+  let lastScrollY = window.scrollY;
+  const scrollThreshold = 8;
+
+  window.addEventListener('scroll', () => {
+    if (!nav) return;
+    const currentScrollY = window.scrollY;
+
+    // Morph state: transparent & wider at top, compact & solid when scrolled
+    nav.classList.toggle('scrolled', currentScrollY > 40);
+
+    // Hide/Show on scroll: smooth hide when scrolling down, show when scrolling up
+    const scrollDelta = currentScrollY - lastScrollY;
+
+    if (!isMobileMenuOpen) {
+      if (currentScrollY <= 40) {
+        // Near top of page: always visible
+        nav.classList.remove('nav-hidden');
+      } else if (scrollDelta > scrollThreshold && currentScrollY > 120) {
+        // Scrolling down past header: hide
+        nav.classList.add('nav-hidden');
+      } else if (scrollDelta < -scrollThreshold) {
+        // Scrolling up: reveal smoothly
+        nav.classList.remove('nav-hidden');
+      }
+    }
+
+    lastScrollY = currentScrollY;
+  }, { passive: true });
+
+  // 3. Active Section Tracking (Scroll Spy with IntersectionObserver)
+  const navSections = [
+    document.getElementById('hero'),
+    document.getElementById('about'),
+    document.getElementById('projects'),
+    document.getElementById('lab'),
+    document.getElementById('contact')
+  ].filter(Boolean);
+
+  function setActiveNavLink(sectionId) {
+    let matchedLink = null;
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href').replace('#', '');
+      const isMatch = (href === sectionId) || (sectionId === 'hero' && (href === '' || href === 'hero'));
+      link.classList.toggle('active', isMatch);
+      if (isMatch) matchedLink = link;
+    });
+
+    mobileNavLinks.forEach(link => {
+      const href = link.getAttribute('href').replace('#', '');
+      const isMatch = (href === sectionId) || (sectionId === 'hero' && (href === '' || href === 'hero'));
+      link.classList.toggle('active', isMatch);
+    });
+
+    if (matchedLink) {
+      updateActivePill(matchedLink);
+    }
+  }
+
+  // Observer for active section detection
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        if (id) {
+          setActiveNavLink(id);
+        }
       }
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+  }, {
+    threshold: 0.25,
+    rootMargin: '-80px 0px -40% 0px'
+  });
 
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  navSections.forEach(sec => sectionObserver.observe(sec));
+
+  // 4. Smooth Scrolling with Navbar Offset
+  function smoothScrollToTarget(targetId) {
+    if (!targetId || targetId === '#' || targetId === '#hero') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const targetElement = document.querySelector(targetId);
+    if (targetElement) {
+      const navOffset = (nav ? nav.offsetHeight : 60) + 24;
+      const elementPosition = targetElement.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - navOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  }
+
+  // Intercept nav clicks
+  document.querySelectorAll('nav a[href^="#"], .mobile-menu a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', (e) => {
+      const href = anchor.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        e.preventDefault();
+        smoothScrollToTarget(href);
+
+        // Close mobile menu if open
+        if (isMobileMenuOpen) {
+          toggleMobileMenu(false);
+        }
+      }
+    });
+  });
+
+  // 5. Mobile Hamburger Menu Toggle
+  function toggleMobileMenu(forceState) {
+    if (!navHamburger || !mobileMenu) return;
+    const nextState = (typeof forceState === 'boolean') ? forceState : !isMobileMenuOpen;
+    isMobileMenuOpen = nextState;
+
+    navHamburger.classList.toggle('active', isMobileMenuOpen);
+    navHamburger.setAttribute('aria-expanded', isMobileMenuOpen ? 'true' : 'false');
+    mobileMenu.classList.toggle('active', isMobileMenuOpen);
+  }
+
+  if (navHamburger) {
+    navHamburger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileMenu();
+    });
+  }
+
+  // Close mobile menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (isMobileMenuOpen && nav && !nav.contains(e.target)) {
+      toggleMobileMenu(false);
+    }
+  });
+
+  // Close mobile menu on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isMobileMenuOpen) {
+      toggleMobileMenu(false);
+    }
+  });
+
+  // Initial pill alignment
+  setTimeout(refreshActivePill, 400);
+  window.addEventListener('load', refreshActivePill);
+
+
+  // SCROLL REVEAL (UPGRADED)
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        // If inline style has animationDelay, transfer it to transitionDelay for smooth stagger
+        if (e.target.style.animationDelay && !e.target.style.transitionDelay) {
+          e.target.style.transitionDelay = e.target.style.animationDelay;
+        }
+        e.target.classList.add('visible');
+        e.target.classList.add('in-view');
+        revealObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal, .anim-reveal').forEach(el => revealObserver.observe(el));
 
   // 3D TILT EFFECT & DYNAMIC GLARE FOR PROFILE IMAGE
   const frame = document.querySelector('.about-image-frame');
@@ -78,27 +264,6 @@
     });
   }
 
-  // SCROLL SPY (ACTIVE NAV LINKS)
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.nav-links a');
-
-  window.addEventListener('scroll', () => {
-    let current = '';
-    sections.forEach(section => {
-      const sectionTop = section.offsetTop;
-      const sectionHeight = section.clientHeight;
-      if (window.scrollY >= (sectionTop - 250)) {
-        current = section.getAttribute('id');
-      }
-    });
-
-    navLinks.forEach(link => {
-      link.classList.remove('active');
-      if (link.getAttribute('href') === `#${current}`) {
-        link.classList.add('active');
-      }
-    });
-  });
 
   // TYPEWRITER EFFECT
   const typewriterText = document.getElementById('typewriter-text');
@@ -349,6 +514,140 @@
       indexEl.textContent = originalText;
     });
   });
+
+  // ============================================
+  // PREMIUM 3D TILT & LIGHT GLARE FOR PROJECT CARDS
+  // ============================================
+  const isTouchDevice = () => window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const isReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!isTouchDevice() && !isReducedMotion()) {
+    const MAX_ROTATE_X = 5.0; // Maksimal rotateX ±5deg (elegan & tidak berlebihan)
+    const MAX_ROTATE_Y = 5.0; // Maksimal rotateY ±5deg (elegan & tidak berlebihan)
+    const MAX_TRANSLATE_Y = -6.0; // Card terangkat 6px
+    const MAX_TRANSLATE_Z = 8.0; // Depth pop 8px
+    const LERP_FACTOR = 0.085; // Interpolasi physics yang sangat halus dan smooth
+
+    document.querySelectorAll('.project-item').forEach(card => {
+      let glare = card.querySelector('.project-glare');
+      if (!glare) {
+        glare = document.createElement('div');
+        glare.className = 'project-glare';
+        card.insertBefore(glare, card.firstChild);
+      }
+
+      let targetRx = 0;
+      let targetRy = 0;
+      let targetTy = 0;
+      let targetTz = 0;
+
+      let currentRx = 0;
+      let currentRy = 0;
+      let currentTy = 0;
+      let currentTz = 0;
+
+      let glareX = 0;
+      let glareY = 0;
+      let isHovered = false;
+      let rafId = null;
+
+      function updateTilt() {
+        // LERP interpolation untuk pergerakan yang halus dan tidak kaku
+        currentRx += (targetRx - currentRx) * LERP_FACTOR;
+        currentRy += (targetRy - currentRy) * LERP_FACTOR;
+        currentTy += (targetTy - currentTy) * LERP_FACTOR;
+        currentTz += (targetTz - currentTz) * LERP_FACTOR;
+
+        // Terapkan transform 3D
+        card.style.transform = `perspective(1000px) translateY(${currentTy.toFixed(2)}px) rotateX(${currentRx.toFixed(2)}deg) rotateY(${currentRy.toFixed(2)}deg) translateZ(${currentTz.toFixed(2)}px)`;
+
+        // Update pantulan cahaya / glare mengikuti posisi kursor secara subtle
+        if (glare && isHovered) {
+          glare.style.background = `radial-gradient(600px circle at ${glareX}px ${glareY}px, rgba(255, 255, 255, 0.065) 0%, rgba(200, 255, 0, 0.02) 22%, transparent 65%)`;
+        }
+
+        // Animasi exit: saat kursor keluar, tunggu sampai posisi kembali ke 0
+        if (!isHovered) {
+          const diffRx = Math.abs(targetRx - currentRx);
+          const diffRy = Math.abs(targetRy - currentRy);
+          const diffTy = Math.abs(targetTy - currentTy);
+          const diffTz = Math.abs(targetTz - currentTz);
+
+          if (diffRx < 0.02 && diffRy < 0.02 && diffTy < 0.02 && diffTz < 0.02) {
+            // Kembali sempurna ke posisi awal tanpa sisa inline transform
+            card.style.transform = '';
+            currentRx = 0;
+            currentRy = 0;
+            currentTy = 0;
+            currentTz = 0;
+            rafId = null;
+            return; // Hentikan loop animasi
+          }
+        }
+
+        rafId = requestAnimationFrame(updateTilt);
+      }
+
+      card.addEventListener('mouseenter', (e) => {
+        isHovered = true;
+        targetTy = MAX_TRANSLATE_Y;
+        targetTz = MAX_TRANSLATE_Z;
+
+        const rect = card.getBoundingClientRect();
+        glareX = e.clientX - rect.left;
+        glareY = e.clientY - rect.top;
+
+        if (glare) glare.style.opacity = '1';
+
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateTilt);
+        }
+      });
+
+      card.addEventListener('mousemove', (e) => {
+        if (!isHovered) isHovered = true;
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Posisi kursor relatif terhadap tengah card (-1 s/d +1)
+        const nx = ((x / rect.width) - 0.5) * 2;
+        const ny = ((y / rect.height) - 0.5) * 2;
+
+        // Formula natural sesuai permintaan:
+        // cursor di kiri (nx < 0) -> rotateY negatif
+        // cursor di kanan (nx > 0) -> rotateY positif
+        // cursor di atas (ny < 0) -> rotateX positif
+        // cursor di bawah (ny > 0) -> rotateX negatif
+        targetRy = Math.max(-MAX_ROTATE_Y, Math.min(MAX_ROTATE_Y, nx * MAX_ROTATE_Y));
+        targetRx = Math.max(-MAX_ROTATE_X, Math.min(MAX_ROTATE_X, -ny * MAX_ROTATE_X));
+
+        targetTy = MAX_TRANSLATE_Y;
+        targetTz = MAX_TRANSLATE_Z;
+
+        glareX = x;
+        glareY = y;
+
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateTilt);
+        }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        isHovered = false;
+        targetRx = 0;
+        targetRy = 0;
+        targetTy = 0;
+        targetTz = 0;
+
+        if (glare) glare.style.opacity = '0';
+
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateTilt);
+        }
+      });
+    });
+  }
 
   // THEME ACCENT SWITCHER
   const themeBtns = document.querySelectorAll('.theme-btn');
@@ -634,77 +933,123 @@
     });
   }
 
-  // DYNAMIC CYBER PRELOADER CONTROLLER
+  // ============================================
+  // CINEMATIC MINIMALIST PRELOADER CONTROLLER
+  // ============================================
   const preloader = document.getElementById('preloader');
-  const preloaderProgress = document.getElementById('preloader-progress');
-  const preloaderStatus = document.getElementById('preloader-status');
-  const preloaderGreeting = document.getElementById('preloader-greeting');
-  
-  if (preloader && preloaderProgress) {
-    // 1. Multilingual Greeting Cycles (every 500ms with fade in/out)
-    if (preloaderGreeting) {
-      const greetings = [
-        "HALO",          // Indonesian
-        "HELLO",         // English
-        "こんにちは",    // Japanese (Hiragana)
-        "HOLA",          // Spanish
-        "BONJOUR",       // French
-        "你好",          // Chinese (Hanzi)
-        "안녕",          // Korean (Hangul)
-        "SALVE",         // Latin
-        "HALLO",         // German
-        "SYSTEM READY"   // Cyber welcome
-      ];
-      let greetIndex = 0;
-      
-      const greetingInterval = setInterval(() => {
-        greetIndex++;
-        if (greetIndex >= greetings.length) {
-          clearInterval(greetingInterval);
-          return;
-        }
-        
-        preloaderGreeting.classList.add('fade');
-        setTimeout(() => {
-          preloaderGreeting.textContent = greetings[greetIndex];
-          preloaderGreeting.classList.remove('fade');
-        }, 180);
-      }, 500);
+  const preloaderWord = document.getElementById('preloader-word');
+  const heroEl = document.querySelector('.hero');
+  const navElement = document.getElementById('nav');
+  const lanyardCardEl = document.getElementById('lanyard-card');
+
+  function triggerHeroEntrance() {
+    // 1. Reveal hero container: smooth scale (0.96 -> 1) & translateY (24px -> 0)
+    if (heroEl) {
+      heroEl.classList.remove('hero-loading');
+      heroEl.classList.add('hero-revealed');
     }
 
-    // 2. High-precision 5-second loading bar
-    let startTime = null;
-    const duration = 5000; // 5000ms = 5 seconds
-
-    function stepPreloader(timestamp) {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(100, (elapsed / duration) * 100);
-
-      preloaderProgress.style.width = progress + '%';
-
-      if (progress < 25) {
-        if (preloaderStatus) preloaderStatus.textContent = 'LOADING CORE DATABASE...';
-      } else if (progress < 50) {
-        if (preloaderStatus) preloaderStatus.textContent = 'SYNCING SOLANA NODES...';
-      } else if (progress < 75) {
-        if (preloaderStatus) preloaderStatus.textContent = 'ORCHESTRATING SPARK SESSION...';
-      } else {
-        if (preloaderStatus) preloaderStatus.textContent = 'RENDER SYSTEM READY';
-      }
-
-      if (elapsed < duration) {
-        requestAnimationFrame(stepPreloader);
-      } else {
-        preloaderProgress.style.width = '100%';
-        if (preloaderStatus) preloaderStatus.textContent = 'RENDER SYSTEM READY';
-        setTimeout(() => {
-          preloader.classList.add('fade-out');
-        }, 300);
-      }
+    // 2. Reveal navbar smoothly
+    if (navElement) {
+      setTimeout(() => {
+        navElement.classList.add('nav-visible');
+      }, 180);
     }
 
-    requestAnimationFrame(stepPreloader);
+    // 3. Staggered hero entrance elements
+    const heroElements = document.querySelectorAll('.hero-entrance');
+    heroElements.forEach(el => {
+      const delay = parseInt(el.getAttribute('data-delay') || '0', 10);
+      setTimeout(() => {
+        el.classList.add('in');
+      }, delay);
+    });
+
+    // 4. Lanyard card entrance
+    if (lanyardCardEl) {
+      setTimeout(() => {
+        lanyardCardEl.classList.add('in');
+      }, 950);
+    }
+  }
+
+  // Check for prefers-reduced-motion
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) {
+    if (preloader) preloader.style.display = 'none';
+    triggerHeroEntrance();
+    if (navElement) navElement.classList.add('nav-visible');
+  } else if (preloader && preloaderWord) {
+    // Word sequence: 5 greetings, total loading experience ~5.0 seconds
+    const greetings = ["Hello.", "Bonjour.", "こんにちは.", "Hola.", "Halo."];
+    
+    function setWord(text) {
+      preloaderWord.style.transition = 'none';
+      preloaderWord.className = 'preloader-word';
+      preloaderWord.textContent = text;
+      // Force reflow
+      void preloaderWord.offsetHeight;
+      // Animate in: fade in + scale 0.95->1 + blur 8px->0
+      preloaderWord.style.transition = '';
+      preloaderWord.classList.add('enter');
+    }
+
+    function fadeOutWord() {
+      // Animate out: fade out + scale 1->1.05 + blur 0->6px
+      preloaderWord.classList.remove('enter');
+      preloaderWord.classList.add('leave');
+    }
+
+    // SEQUENCE SCHEDULE (Total ~5.0 seconds):
+    // 0.0s – 0.8s: "Hello." appears
+    // 0.8s – 1.1s: "Hello." fades out
+    setWord(greetings[0]);
+    setTimeout(fadeOutWord, 780);
+
+    // 1.1s – 1.9s: "Bonjour." appears
+    // 1.9s – 2.2s: "Bonjour." fades out
+    setTimeout(() => {
+      setWord(greetings[1]);
+      setTimeout(fadeOutWord, 780);
+    }, 1100);
+
+    // 2.2s – 3.0s: "こんにちは." appears
+    // 3.0s – 3.3s: "こんにちは." fades out
+    setTimeout(() => {
+      setWord(greetings[2]);
+      setTimeout(fadeOutWord, 780);
+    }, 2200);
+
+    // 3.3s – 4.0s: "Hola." appears
+    // 4.0s – 4.3s: "Hola." fades out
+    setTimeout(() => {
+      setWord(greetings[3]);
+      setTimeout(fadeOutWord, 700);
+    }, 3300);
+
+    // 4.3s – 5.0s: "Halo." appears
+    setTimeout(() => {
+      setWord(greetings[4]);
+    }, 4300);
+
+    // 5.0s: Cinematic Reveal Transition!
+    // Loading Screen pulls up smoothly to translateY(-100%)
+    setTimeout(() => {
+      // Start curtain reveal
+      preloader.classList.add('preloader-exit');
+
+      // Hero & Landing Page begin entrance animation as curtain pulls up
+      triggerHeroEntrance();
+
+      // Cleanly remove preloader after 1.1s curtain pull completes
+      setTimeout(() => {
+        preloader.style.display = 'none';
+      }, 1150);
+    }, 5000);
+
+  } else {
+    triggerHeroEntrance();
+    if (navElement) navElement.classList.add('nav-visible');
   }
 
   // SCROLL PROGRESS & BACK TO TOP CONTROLLER
@@ -786,16 +1131,23 @@
           }
 
           if (show) {
-            item.style.display = 'flex';
+            item.classList.add('filtering');
+            item.style.display = 'grid';
             setTimeout(() => {
               item.style.opacity = '1';
               item.style.transform = 'translateY(0) scale(1)';
+              setTimeout(() => {
+                item.style.transform = '';
+                item.classList.remove('filtering');
+              }, 420);
             }, 50);
           } else {
+            item.classList.add('filtering');
             item.style.opacity = '0';
             item.style.transform = 'translateY(20px) scale(0.95)';
             setTimeout(() => {
               item.style.display = 'none';
+              item.classList.remove('filtering');
             }, 400); // Match CSS transition duration
           }
         });
@@ -1022,11 +1374,11 @@ def insert(root, key):
     // Tilt variables
     let tiltX = 0, tiltY = 0;
 
-    // Initialization: set start position under the reel relative to hero, let it fall!
+    // Initialization: set start position tepat di bawah reel, let it fall smoothly!
     const initHeroRect = heroSection.getBoundingClientRect();
     const initReelRect = lanyardReel.getBoundingClientRect();
     cardX = (initReelRect.left + initReelRect.width / 2) - initHeroRect.left;
-    cardY = (initReelRect.bottom + 50) - initHeroRect.top;
+    cardY = 50; // start dari atas, jatuh ke targetY (160px)
 
     lanyardCard.addEventListener('mousedown', (e) => {
       if (window.innerWidth <= 1024) return;
@@ -1119,21 +1471,23 @@ def insert(root, key):
         return;
       }
 
-      // 1. Calculate Reel anchor position (in Viewport coordinates)
+      // 1. Calculate Reel anchor position (in Viewport coordinates) — used for rope drawing
       const reelRect = lanyardReel.getBoundingClientRect();
       reelX = reelRect.left + reelRect.width / 2;
       reelY = reelRect.bottom - 2;
 
       // 2. Calculate target resting position relative to the hero section
+      // Reel sekarang fixed position di kanan viewport, gunakan posisinya secara langsung
       const heroRect = heroSection.getBoundingClientRect();
-      targetX = reelX - heroRect.left;
-      
+      targetX = reelX - heroRect.left; // kartu istirahat tepat di bawah reel
+
       // Responsive target Y relative to hero section top
       let targetYVal = 160;
       if (window.innerHeight < 700) {
         targetYVal = 130;
       }
       targetY = targetYVal;
+
 
       // 3. Active spring physics for desktop
       if (!isDragging) {
@@ -1254,4 +1608,60 @@ def insert(root, key):
     requestAnimationFrame(updateLanyardPhysics);
   }
 
+  // ==========================================
+  // 5. LABORATORY SHOWCASE PROJECT SWITCHER
+  // ==========================================
+  const labTabs = document.querySelectorAll('.lab-tab-btn');
+  const labCards = document.querySelectorAll('.lab-project-card');
+  const labPrevBtn = document.getElementById('lab-prev-btn');
+  const labNextBtn = document.getElementById('lab-next-btn');
+  const labCurrNum = document.getElementById('lab-curr-num');
+  let currentLabIndex = 0;
+  const totalLabProjects = labCards.length;
 
+  function switchLabProject(index) {
+    if (totalLabProjects === 0) return;
+    if (index < 0) index = totalLabProjects - 1;
+    if (index >= totalLabProjects) index = 0;
+    currentLabIndex = index;
+
+    // Update tabs
+    labTabs.forEach(tab => {
+      const tabIdx = parseInt(tab.getAttribute('data-index'), 10);
+      const isActive = tabIdx === currentLabIndex;
+      tab.classList.toggle('active', isActive);
+      if (isActive && window.innerWidth <= 768) {
+        tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    });
+
+    // Update cards
+    labCards.forEach(card => {
+      const cardIdx = parseInt(card.getAttribute('data-card'), 10);
+      card.classList.toggle('active', cardIdx === currentLabIndex);
+    });
+
+    // Update counter display
+    if (labCurrNum) {
+      labCurrNum.textContent = `0${currentLabIndex + 1}`;
+    }
+  }
+
+  labTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.getAttribute('data-index'), 10);
+      switchLabProject(idx);
+    });
+  });
+
+  if (labPrevBtn) {
+    labPrevBtn.addEventListener('click', () => {
+      switchLabProject(currentLabIndex - 1);
+    });
+  }
+
+  if (labNextBtn) {
+    labNextBtn.addEventListener('click', () => {
+      switchLabProject(currentLabIndex + 1);
+    });
+  }
